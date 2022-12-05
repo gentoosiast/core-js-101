@@ -115,33 +115,140 @@ function fromJSON(proto, json) {
  *  For more examples see unit tests.
  */
 
+class MyCSSBuilder {
+  constructor() {
+    this.data = [];
+    this.elementUsed = false;
+    this.idUsed = false;
+    this.pseudoElementUsed = false;
+  }
+
+  addSelectorPart(type, value) {
+    if (
+      (type === 'element' && this.elementUsed)
+      || (type === 'id' && this.idUsed)
+      || (type === 'pseudoelement' && this.pseudoElementUsed)
+    ) {
+      throw new Error(
+        'Element, id and pseudo-element should not occur more then one time inside the selector',
+      );
+    }
+
+    if (this.data.length > 0) {
+      const lastPartType = this.data[this.data.length - 1].type;
+      if (
+        type === 'element'
+        || (type === 'id' && lastPartType !== 'element')
+        || (type === 'class'
+          && ['attr', 'pseudoclass', 'pseudoelement'].includes(lastPartType))
+        || (type === 'attr'
+          && ['pseudoclass', 'pseudoelement'].includes(lastPartType))
+        || (type === 'pseudoclass' && lastPartType === 'pseudoelement')
+      ) {
+        throw new Error(
+          'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element',
+        );
+      }
+    }
+
+    if (type === 'element') {
+      this.elementUsed = true;
+    } else if (type === 'id') {
+      this.idUsed = true;
+    } else if (type === 'pseudoelement') {
+      this.pseudoElementUsed = true;
+    }
+
+    this.data.push({ type, value });
+    return this;
+  }
+
+  element(value) {
+    return this.addSelectorPart('element', value);
+  }
+
+  id(value) {
+    return this.addSelectorPart('id', value);
+  }
+
+  class(value) {
+    return this.addSelectorPart('class', value);
+  }
+
+  attr(value) {
+    return this.addSelectorPart('attr', value);
+  }
+
+  pseudoClass(value) {
+    return this.addSelectorPart('pseudoclass', value);
+  }
+
+  pseudoElement(value) {
+    return this.addSelectorPart('pseudoelement', value);
+  }
+
+  combine(selector1, combinator, selector2) {
+    this.data = [
+      ...selector1.data,
+      { type: 'combinator', value: combinator },
+      ...selector2.data,
+    ];
+    return this;
+  }
+
+  stringify() {
+    return this.data
+      .map((part) => {
+        switch (part.type) {
+          case 'element':
+            return part.value;
+          case 'id':
+            return `#${part.value}`;
+          case 'class':
+            return `.${part.value}`;
+          case 'attr':
+            return `[${part.value}]`;
+          case 'pseudoclass':
+            return `:${part.value}`;
+          case 'pseudoelement':
+            return `::${part.value}`;
+          case 'combinator':
+            return ` ${part.value} `;
+          default:
+            return '';
+        }
+      })
+      .join('');
+  }
+}
+
 const cssSelectorBuilder = {
-  element(/* value */) {
-    throw new Error('Not implemented');
+  element(value) {
+    return new MyCSSBuilder().addSelectorPart('element', value);
   },
 
-  id(/* value */) {
-    throw new Error('Not implemented');
+  id(value) {
+    return new MyCSSBuilder().addSelectorPart('id', value);
   },
 
-  class(/* value */) {
-    throw new Error('Not implemented');
+  class(value) {
+    return new MyCSSBuilder().addSelectorPart('class', value);
   },
 
-  attr(/* value */) {
-    throw new Error('Not implemented');
+  attr(value) {
+    return new MyCSSBuilder().addSelectorPart('attr', value);
   },
 
-  pseudoClass(/* value */) {
-    throw new Error('Not implemented');
+  pseudoClass(value) {
+    return new MyCSSBuilder().addSelectorPart('pseudoclass', value);
   },
 
-  pseudoElement(/* value */) {
-    throw new Error('Not implemented');
+  pseudoElement(value) {
+    return new MyCSSBuilder().addSelectorPart('pseudoelement', value);
   },
 
-  combine(/* selector1, combinator, selector2 */) {
-    throw new Error('Not implemented');
+  combine(selector1, combinator, selector2) {
+    return new MyCSSBuilder().combine(selector1, combinator, selector2);
   },
 };
 
